@@ -10,30 +10,59 @@ class CPU:
         self.RAM = [0] * 256         # Memory list to hold up to 256 commands
         self.register = [0] * 8      # Register to store up to 8 values
         self.PC = 0                  # Program counter
-        #self.register[7] = '0xF4'
+        self.register[7] = 0xF4      # Stack pointer set to F4 in the RAM
+
+    #     # Storing command codes for easier reference
+    #     HLT = 0b00000001        # Halt execution
+    #     LDI = 0b10000010        # Load immediate
+    #     PRN = 0b01000111        # Print
+    #     MUL = 0b10100010        # Multiply
+
+    #     # Create branch table
+    #     self.branchtable = {}
+    #     self.branchtable[HLT] = self.halt_op
+    
+    # def halt_op(self):
 
 
-    def load(self):
+
+    def load(self, program=None):
         """Load a program into memory."""
 
         address = 0
 
         # For now, we've just hardcoded a program:
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+        # program = [
+        #     # From print8.ls8
+        #     0b10000010, # LDI R0,8
+        #     0b00000000,
+        #     0b00001000,
+        #     0b01000111, # PRN R0
+        #     0b00000000,
+        #     0b00000001, # HLT
+        # ]
 
-        for instruction in program:
-            self.RAM[address] = instruction
-            #print(instruction)
-            address += 1
+        # for instruction in program:
+        #     self.RAM[address] = instruction
+        #     print(instruction)
+        #     print(self.RAM[address])
+        #     address += 1
+
+        with open(program, 'r') as f:
+            incoming = f.read().splitlines()
+
+        # print(incoming)
+
+        for instruction in incoming:
+            if instruction != "" and instruction[0] != "#":
+                # print(instruction)
+                self.RAM[address] = int(instruction[:8], 2)
+                # print(self.RAM[address])
+                address += 1
+
+        # for i, line in enumerate(incoming):
+        #     print(i, line)
 
 
     def alu(self, op, reg_a, reg_b):
@@ -73,6 +102,9 @@ class CPU:
         HLT = 0b00000001        # Halt execution
         LDI = 0b10000010        # Load immediate
         PRN = 0b01000111        # Print
+        MUL = 0b10100010        # Multiply
+        PUSH = 0b01000101       # Push an item onto the stack
+        POP = 0b01000110        # Pop an item off of the stack
 
         # While loop to keep running the program
         run_again = True
@@ -99,6 +131,31 @@ class CPU:
                 # Print the value at the following address
                 print(self.register[operand_a])
                 self.PC += 2
+            
+            elif IR == MUL:
+                # Gets the two numbers at the registers for the next two locations
+                # and puts their product in the register of the first location
+                num1 = self.register[operand_a]
+                num2 = self.register[operand_b]
+                self.register[operand_a] = num1 * num2
+                self.PC += 3
+            
+            elif IR == PUSH:
+                # Push value onto the stack
+                # Decrement the stack pointer
+                self.register[7] -= 1
+                # Copy value in operand a to the stack location in RAM
+                self.RAM[self.register[7]] = self.register[operand_a]
+                self.PC += 2
+            
+            elif IR == POP:
+                # Pop value off of the stack
+                # Get the value from the stack pointer and put in register location
+                self.register[operand_a] = self.RAM[self.register[7]]
+                # Increment the stack pointer
+                self.register[7] += 1
+                self.PC += 2
+
         
 
 
