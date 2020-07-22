@@ -105,10 +105,14 @@ class CPU:
         MUL = 0b10100010        # Multiply
         PUSH = 0b01000101       # Push an item onto the stack
         POP = 0b01000110        # Pop an item off of the stack
+        CALL = 0b01010000
+        RET = 0b00010001
+        ADD = 0b10100000
 
         # While loop to keep running the program
         run_again = True
         while run_again:
+            #print("PC:", self.PC)
 
             #self.trace()
 
@@ -118,21 +122,25 @@ class CPU:
             operand_b = self.RAM[self.PC+2]     # the instruction at RAM[PC] needs them
 
             if IR == HLT:
+                #print("Halting")
                 # Break the loop
                 run_again = False
             
             elif IR == LDI:
+                #print("Loading")
                 # At the next address in the memory, input the value
                 # that follows
                 self.register[operand_a] = operand_b
                 self.PC += 3
             
             elif IR == PRN:
+                #print("Printing")
                 # Print the value at the following address
                 print(self.register[operand_a])
                 self.PC += 2
             
             elif IR == MUL:
+                #print("Multiplying")
                 # Gets the two numbers at the registers for the next two locations
                 # and puts their product in the register of the first location
                 num1 = self.register[operand_a]
@@ -141,6 +149,7 @@ class CPU:
                 self.PC += 3
             
             elif IR == PUSH:
+                print("Pushing")
                 # Push value onto the stack
                 # Decrement the stack pointer
                 self.register[7] -= 1
@@ -149,12 +158,44 @@ class CPU:
                 self.PC += 2
             
             elif IR == POP:
+                #print("Popping")
                 # Pop value off of the stack
                 # Get the value from the stack pointer and put in register location
                 self.register[operand_a] = self.RAM[self.register[7]]
                 # Increment the stack pointer
                 self.register[7] += 1
                 self.PC += 2
+            
+            elif IR == CALL:
+                #print("Calling")
+                # Decrement the stack pointer
+                self.register[7] -= 1
+                # Save where the program counter should start AFTER using CALL
+                self.RAM[self.register[7]] = self.PC + 2
+                # Move program counter to where the CALL value is pointing
+                self.PC = self.register[self.RAM[self.PC + 1]]
+
+            elif IR == RET:
+                #print("Returning")
+                # Get the program counter value stored from the most recent CALL
+                self.PC = self.RAM[self.register[7]]
+                # Increment the stack pointer
+                self.register[7] += 1
+            
+            elif IR == ADD:
+                #print("Adding")
+                # Gets the two numbers at the registers for the next two locations
+                # and puts their sum in the register of the first location 
+                num1 = self.register[operand_a]
+                num2 = self.register[operand_b]
+                self.register[operand_a] = num1 + num2
+                self.PC += 3
+
+            else:
+                # Catch-all statement in case a command has not been registered
+                print("IR:", self.RAM[self.PC])
+                print("Command not recognized")
+                run_again = False
 
         
 
