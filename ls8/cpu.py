@@ -11,6 +11,8 @@ class CPU:
         self.register = [0] * 8      # Register to store up to 8 values
         self.PC = 0                  # Program counter
         self.register[7] = 0xF4      # Stack pointer set to F4 in the RAM
+        self.FL = 0b00000000         # Set the flag state to 0
+
 
     #     # Storing command codes for easier reference
     #     HLT = 0b00000001        # Halt execution
@@ -70,7 +72,54 @@ class CPU:
 
         if op == "ADD":
             self.register[reg_a] += self.register[reg_b]
-        #elif op == "SUB": etc
+        elif op == "SUB":
+            self.register[reg_a] -= self.register[reg_b]
+        elif op == "MUL":
+            self.register[reg_a] *= self.register[reg_b]
+        # elif op == "DIV":
+        #     if self.register[reg_b] == 0:
+        #         print("Error: Division by Zero")
+        #         run_again = False
+        #     else:
+        #         self.register[reg_a] /= self.register[reg_b]
+        elif op == "CMP":
+            # `FL` bits: `00000LGE`
+            num1 = self.register[reg_a]
+            num2 = self.register[reg_b]
+
+            if num1 < num2:
+                # Set less than flag
+                self.FL = self.FL | 0b00000100
+            else:
+                # Remove less than flag
+                self.FL = self.FL & 0b00000011
+
+            if num1 > num2:
+                # Set greater than flag
+                self.FL = self.FL | 0b00000010
+            else:
+                # Remove greater than flag
+                self.FL = self.FL & 0b00000101
+
+            if num1 == num2:
+                # Set equal to flag
+                self.FL = self.FL | 0b00000001
+            else:
+                # Remove equal to flag
+                self.FL = self.FL & 0b00000110
+        elif op == "AND":
+            pass
+        elif op == "OR":
+            pass
+        elif op == "XOR":
+            pass
+        elif op == "SHL":
+            pass
+        elif op == "SHR":
+            pass
+        elif op == "MOD":
+            pass
+
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -108,12 +157,17 @@ class CPU:
         CALL = 0b01010000
         RET = 0b00010001
         ADD = 0b10100000
+        CMP = 0b10100111
+        JEQ = 0b01010101
+        JNE = 0b01010110
+        JMP = 0b01010100
+        ST = 0b10000100
 
         # While loop to keep running the program
         run_again = True
         while run_again:
             #print("PC:", self.PC)
-
+            print_steps = False
             #self.trace()
 
             IR = self.RAM[self.PC]         # Load the instruction from RAM at PC index
@@ -122,34 +176,42 @@ class CPU:
             operand_b = self.RAM[self.PC+2]     # the instruction at RAM[PC] needs them
 
             if IR == HLT:
-                #print("Halting")
+                if print_steps == True:
+                    print("Halting; PC:", self.PC)
                 # Break the loop
                 run_again = False
             
             elif IR == LDI:
-                #print("Loading")
+                if print_steps == True:
+                    print("Loading; PC:", self.PC)
                 # At the next address in the memory, input the value
                 # that follows
                 self.register[operand_a] = operand_b
                 self.PC += 3
             
             elif IR == PRN:
-                #print("Printing")
+                if print_steps == True:
+                    print("Printing; PC:", self.PC)
                 # Print the value at the following address
                 print(self.register[operand_a])
                 self.PC += 2
             
             elif IR == MUL:
-                #print("Multiplying")
+                if print_steps == True:
+                    print("Multiplying; PC:", self.PC)
                 # Gets the two numbers at the registers for the next two locations
                 # and puts their product in the register of the first location
-                num1 = self.register[operand_a]
-                num2 = self.register[operand_b]
-                self.register[operand_a] = num1 * num2
+                # num1 = self.register[operand_a]
+                # num2 = self.register[operand_b]
+                # self.register[operand_a] = num1 * num2
+
+                # Using the ALU
+                self.alu("MUL", operand_a, operand_b)
                 self.PC += 3
             
             elif IR == PUSH:
-                print("Pushing")
+                if print_steps == True:
+                    print("Pushing; PC:", self.PC)
                 # Push value onto the stack
                 # Decrement the stack pointer
                 self.register[7] -= 1
@@ -158,7 +220,8 @@ class CPU:
                 self.PC += 2
             
             elif IR == POP:
-                #print("Popping")
+                if print_steps == True:
+                    print("Popping; PC:", self.PC)
                 # Pop value off of the stack
                 # Get the value from the stack pointer and put in register location
                 self.register[operand_a] = self.RAM[self.register[7]]
@@ -167,7 +230,8 @@ class CPU:
                 self.PC += 2
             
             elif IR == CALL:
-                #print("Calling")
+                if print_steps == True:
+                    print("Calling; PC:", self.PC)
                 # Decrement the stack pointer
                 self.register[7] -= 1
                 # Save where the program counter should start AFTER using CALL
@@ -176,19 +240,82 @@ class CPU:
                 self.PC = self.register[self.RAM[self.PC + 1]]
 
             elif IR == RET:
-                #print("Returning")
+                if print_steps == True:
+                    print("Returning; PC:", self.PC)
                 # Get the program counter value stored from the most recent CALL
                 self.PC = self.RAM[self.register[7]]
                 # Increment the stack pointer
                 self.register[7] += 1
             
             elif IR == ADD:
-                #print("Adding")
+                if print_steps == True:
+                    print("Adding; PC:", self.PC)
                 # Gets the two numbers at the registers for the next two locations
                 # and puts their sum in the register of the first location 
-                num1 = self.register[operand_a]
-                num2 = self.register[operand_b]
-                self.register[operand_a] = num1 + num2
+                # num1 = self.register[operand_a]
+                # num2 = self.register[operand_b]
+                # self.register[operand_a] = num1 + num2
+
+                # Using the ALU
+                self.alu("ADD", operand_a, operand_b)
+                self.PC += 3
+            
+            elif IR == CMP:
+                if print_steps == True:
+                    print("Comparing; PC:", self.PC)
+                # # `FL` bits: `00000LGE`
+                # num1 = self.register[operand_a]
+                # num2 = self.register[operand_b]
+
+                # if num1 < num2:
+                #     # Set less than flag
+                #     self.FL = self.FL | 0b00000100
+                # else:
+                #     # Remove less than flag
+                #     self.FL = self.FL & 0b00000011
+
+                # if num1 > num2:
+                #     # Set greater than flag
+                #     self.FL = self.FL | 0b00000010
+                # else:
+                #     # Remove greater than flag
+                #     self.FL = self.FL & 0b00000101
+
+                # if num1 == num2:
+                #     # Set equal to flag
+                #     self.FL = self.FL | 0b00000001
+                # else:
+                #     # Remove equal to flag
+                #     self.FL = self.FL & 0b00000110
+
+                # Using ALU
+                self.alu("CMP", operand_a, operand_b)
+
+                self.PC += 3
+            
+            elif IR == JEQ:
+                if print_steps == True:
+                    print("Checking if equal; PC:", self.PC)
+                if self.FL & 0b00000001 == 0b00000001:
+                    self.PC = self.register[operand_a]
+                else:
+                    self.PC += 2
+                
+            elif IR == JNE:
+                if print_steps == True:
+                    print("Checking if not equal; PC:", self.PC)
+                if self.FL & 0b00000001 != 0b00000001:
+                    self.PC = self.register[operand_a]
+                else:
+                    self.PC += 2
+
+            elif IR == JMP:
+                if print_steps == True:
+                    print("Jumping; PC:", self.PC)
+                self.PC = self.register[operand_a]
+            
+            elif IR == ST:
+                self.RAM[self.register[operand_a]] = self.RAM[self.register[operand_b]]
                 self.PC += 3
 
             else:
